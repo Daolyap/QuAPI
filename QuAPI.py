@@ -664,23 +664,48 @@ class QualysAPIClient:
                     "Try using Custom Request with:\nGET /qps/rest/2.0/get/am/key\nOr check your API permissions.")
 
     def list_report_templates(self):
-        """List report templates from local file"""
-        if not self.report_templates:
-            messagebox.showwarning("No Templates", "No templates loaded from local file.\nCheck that templates.json exists.")
-            return
+        """List VM report templates - try API first, fall back to local"""
+        # Try multiple endpoints for VM templates
+        endpoints = [
+            ("/msp/report_template_list.php", "GET", None),
+            ("/api/2.0/fo/report/", "GET", {"action": "list"}),
+        ]
 
-        # Parse template data from the loaded dict
-        template_data = []
-        for display_name, template_id in self.report_templates.items():
-            # Extract name from display format "Name (ID)"
-            name = display_name.split(" (")[0] if " (" in display_name else display_name
-            template_data.append((template_id, name, "Local"))
+        for endpoint, method, params in endpoints:
+            response = self.make_request(endpoint, method=method, params=params)
 
-        self.display_in_tree(["ID", "Name", "Source"], template_data)
-        messagebox.showinfo("Templates Loaded",
-            f"Loaded {len(self.report_templates)} templates from local file.\n\n"
-            "These are example templates. Your Qualys instance may have different IDs.\n"
-            "You can manually enter template IDs when launching reports.")
+            if response and response.status_code == 200:
+                try:
+                    root = ET.fromstring(response.text)
+                    data = self.parse_list_report_templates(root)
+                    if data:
+                        self.display_in_tree(["ID", "Title", "Type"], data)
+                        self.display_raw_output(response)
+                        messagebox.showinfo("Success",
+                            f"Found {len(self.report_templates)} VM report templates!\n\n"
+                            "These template IDs can be used when launching reports.\n"
+                            "You can also manually enter template IDs.")
+                        return
+                except Exception as e:
+                    continue  # Try next endpoint
+
+        # If all API attempts fail, show local templates
+        if self.report_templates:
+            template_data = []
+            for display_name, template_id in self.report_templates.items():
+                name = display_name.split(" (")[0] if " (" in display_name else display_name
+                template_data.append((template_id, name, "Local"))
+            self.display_in_tree(["ID", "Name", "Source"], template_data)
+
+        messagebox.showwarning("Cannot Fetch Templates",
+            "Could not fetch VM templates from API.\n\n"
+            "To find your template IDs:\n"
+            "1. Log into Qualys web interface\n"
+            "2. Go to VM > Reports > Templates\n"
+            "3. Note the template IDs\n"
+            "4. Use 'Manual ID' option when launching reports\n\n"
+            "Or try Custom Request with:\n"
+            "GET /msp/report_template_list.php")
 
     def list_scan_targets(self):
         """List scan targets"""
@@ -1332,12 +1357,21 @@ class QualysAPIClient:
             data_text.delete("1.0", tk.END)
             method_var.set("GET")
 
+        def load_example_4():
+            endpoint_entry.delete(0, tk.END)
+            endpoint_entry.insert(0, "/msp/report_template_list.php")
+            params_text.delete("1.0", tk.END)
+            data_text.delete("1.0", tk.END)
+            method_var.set("GET")
+
         ttk.Button(examples_frame, text="Ex 1: List Users (GET)",
-            command=load_example_1).pack(side=tk.LEFT, padx=5)
+            command=load_example_1).pack(side=tk.LEFT, padx=2)
         ttk.Button(examples_frame, text="Ex 2: List Reports (POST)",
-            command=load_example_2).pack(side=tk.LEFT, padx=5)
+            command=load_example_2).pack(side=tk.LEFT, padx=2)
         ttk.Button(examples_frame, text="Ex 3: List Scans (GET)",
-            command=load_example_3).pack(side=tk.LEFT, padx=5)
+            command=load_example_3).pack(side=tk.LEFT, padx=2)
+        ttk.Button(examples_frame, text="Ex 4: VM Templates (GET)",
+            command=load_example_4).pack(side=tk.LEFT, padx=2)
 
         def submit():
             endpoint = endpoint_entry.get().strip()

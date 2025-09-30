@@ -3,7 +3,8 @@
     "allow": [
       "Bash(git add:*)",
       "Bash(git commit -m \"$(cat <<''EOF''\nFix critical issues and add new features\n\nCritical Bug Fixes:\n- Fixed report template fetching (changed to POST method with proper data structure)\n- Fixed buttons hanging off screen (reduced padding from 12,6 to 8,4 and font to 8pt)\n- Fixed cloud agents 404 error (changed endpoint to /api/2.0/fo/asset/host/)\n- Reduced spacing between button groups (15px to 8px) for better screen fit\n\nNew Features:\n- Added List Activation Keys operation for cloud agent management\n- Added real-time filtering/searching to formatted output\n- Filter bar above formatted output table\n- Clear Filter button for quick reset\n- Filter searches across all columns in real-time\n\nImprovements:\n- Better error messages with alternative endpoint suggestions\n- More compact button layout for smaller screens\n- Improved API endpoint handling with fallback suggestions\n- Enhanced user feedback for failed operations\n- Store tree data for efficient filtering\n\nAll major functionality now operational with improved UX.\nEOF\n)\")",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
