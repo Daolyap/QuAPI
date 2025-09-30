@@ -44,8 +44,8 @@ class QualysAPIClient:
             background=self.maroon,
             foreground=self.text_white,
             borderwidth=0,
-            padding=(12, 6),
-            font=('Segoe UI', 9))
+            padding=(8, 4),
+            font=('Segoe UI', 8))
         style.map('TButton',
             background=[('active', self.maroon_hover), ('pressed', self.maroon_light)],
             relief=[('pressed', 'sunken')])
@@ -203,7 +203,8 @@ class QualysAPIClient:
             "Asset Management": [
                 ("Search Assets", self.search_assets),
                 ("List Cloud Agents", self.list_agents),
-                ("Get Host Details", self.get_host_details)
+                ("Get Host Details", self.get_host_details),
+                ("List Activation Keys", self.list_activation_keys)
             ],
             "Reports": [
                 ("List Reports", self.list_reports),
@@ -226,16 +227,16 @@ class QualysAPIClient:
         for group_name, buttons in button_groups.items():
             # Group label
             group_label = ttk.Label(button_frame, text=group_name, style='Header.TLabel')
-            group_label.pack(anchor=tk.W, pady=(15, 8), padx=10)
+            group_label.pack(anchor=tk.W, pady=(8, 4), padx=10)
 
             # Separator
             separator = ttk.Separator(button_frame, orient='horizontal')
-            separator.pack(fill=tk.X, padx=10, pady=(0, 8))
+            separator.pack(fill=tk.X, padx=10, pady=(0, 4))
 
             # Buttons
             for btn_text, btn_command in buttons:
                 btn = ttk.Button(button_frame, text=btn_text, command=btn_command, style='TButton')
-                btn.pack(fill=tk.X, pady=3, padx=10)
+                btn.pack(fill=tk.X, pady=2, padx=10)
 
         # --- Output Area ---
         output_frame = ttk.Frame(operations_container, style='TFrame')
@@ -248,9 +249,21 @@ class QualysAPIClient:
         # Formatted Output Tab
         formatted_frame = ttk.Frame(self.output_notebook, style='TFrame')
 
+        # Search/Filter bar
+        search_frame = ttk.Frame(formatted_frame, style='TFrame')
+        search_frame.pack(fill=tk.X, padx=5, pady=5)
+
+        ttk.Label(search_frame, text="Filter:", style='TLabel').pack(side=tk.LEFT, padx=(5, 5))
+        self.search_var = tk.StringVar()
+        self.search_var.trace('w', lambda *args: self.filter_tree())
+        search_entry = ttk.Entry(search_frame, textvariable=self.search_var, width=30, style='TEntry')
+        search_entry.pack(side=tk.LEFT, padx=(0, 10))
+
+        ttk.Button(search_frame, text="Clear Filter", command=self.clear_filter, style='TButton').pack(side=tk.LEFT)
+
         # Treeview with scrollbars
         tree_container = ttk.Frame(formatted_frame, style='TFrame')
-        tree_container.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        tree_container.pack(fill=tk.BOTH, expand=True, padx=5, pady=(0, 5))
 
         tree_scroll_y = ttk.Scrollbar(tree_container, orient="vertical")
         tree_scroll_x = ttk.Scrollbar(tree_container, orient="horizontal")
@@ -271,6 +284,7 @@ class QualysAPIClient:
         # Enable column sorting
         self.tree.bind('<Button-1>', self.on_tree_click)
         self.sort_reverse = {}
+        self.tree_data = []  # Store original data for filtering
 
         self.output_notebook.add(formatted_frame, text="Formatted Output")
 
@@ -350,6 +364,7 @@ class QualysAPIClient:
 
         self.tree["columns"] = columns
         self.tree["show"] = "headings"
+        self.tree_data = data  # Store for filtering
 
         for col in columns:
             self.tree.heading(col, text=col, command=lambda c=col: self.sort_tree_column(c))
@@ -361,6 +376,30 @@ class QualysAPIClient:
 
         # Switch to formatted output tab
         self.output_notebook.select(0)
+
+    def filter_tree(self):
+        """Filter tree view based on search term"""
+        search_term = self.search_var.get().lower()
+
+        # Clear current tree
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+
+        # Re-populate with filtered data
+        if not search_term:
+            # Show all data if no search term
+            for row in self.tree_data:
+                self.tree.insert("", "end", values=row)
+        else:
+            # Filter data
+            for row in self.tree_data:
+                # Check if search term is in any column
+                if any(search_term in str(cell).lower() for cell in row):
+                    self.tree.insert("", "end", values=row)
+
+    def clear_filter(self):
+        """Clear the filter search box"""
+        self.search_var.set("")
 
     def sort_tree_column(self, col):
         """Sort treeview by column"""
@@ -584,29 +623,53 @@ class QualysAPIClient:
 
     def list_agents(self):
         """List cloud agents"""
-        response = self.make_request("/qps/rest/2.0/search/am/hostasset",
-            method="POST",
-            data="<ServiceRequest><filters><Criteria field='agentId' operator='GREATER'>0</Criteria></filters></ServiceRequest>")
+        # Try multiple endpoints as Qualys API varies by platform
+        response = self.make_request("/api/2.0/fo/asset/host/",
+            params={"action": "list", "details": "Basic", "truncation_limit": "100"})
+
         if response:
             self.display_raw_output(response)
+            if response.status_code == 404:
+                messagebox.showinfo("Alternative Endpoint",
+                    "Cloud agents endpoint may vary by platform.\nTry: Asset Management > Search Assets\nOr use Custom Request to test:\n/qps/rest/2.0/count/am/hostasset")
+
+    def list_activation_keys(self):
+        """List activation keys for cloud agents"""
+        response = self.make_request("/qps/rest/2.0/get/am/key",
+            params={"details": "All"})
+
+        if response:
+            self.display_raw_output(response)
+            if response.status_code == 404:
+                messagebox.showinfo("Alternative Endpoint",
+                    "Try using Custom Request with:\nGET /qps/rest/2.0/get/am/key\nOr check your API permissions.")
 
     def list_report_templates(self):
         """List report templates"""
-        response = self.make_request("/api/2.0/fo/report/template/", params={"action": "list"})
+        # Try POST method first as some Qualys APIs require it
+        response = self.make_request("/api/2.0/fo/report/",
+            method="POST",
+            data={"action": "list", "type": "template"})
+
         if response and response.status_code == 200:
             try:
                 root = ET.fromstring(response.text)
                 data = self.parse_list_report_templates(root)
-                self.display_in_tree(["ID", "Title", "Type"], data)
-                self.display_raw_output(response)
-                messagebox.showinfo("Success", f"Fetched {len(self.report_templates)} report templates.")
+                if data:
+                    self.display_in_tree(["ID", "Title", "Type"], data)
+                    self.display_raw_output(response)
+                    messagebox.showinfo("Success", f"Fetched {len(self.report_templates)} report templates.")
+                else:
+                    self.display_raw_output(response)
+                    messagebox.showwarning("No Templates", "No report templates found in response.")
             except Exception as e:
                 messagebox.showerror("Parse Error", f"Could not parse response:\n{str(e)}")
                 self.display_raw_output(response)
         else:
             if response:
                 self.display_raw_output(response)
-            messagebox.showerror("API Error", f"Failed to fetch templates. Status: {response.status_code if response else 'N/A'}")
+                messagebox.showerror("API Error",
+                    f"Failed to fetch templates.\nStatus: {response.status_code}\nTry using Custom Request to test different endpoints.")
 
     def list_scan_targets(self):
         """List scan targets"""
