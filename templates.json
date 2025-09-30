@@ -1,0 +1,22 @@
+{
+  "report_templates": {
+    "Common Templates": [
+      {"id": "100001", "name": "Executive Report", "description": "High-level executive summary"},
+      {"id": "100002", "name": "Technical Report", "description": "Detailed technical findings"},
+      {"id": "100003", "name": "Compliance Report", "description": "Compliance-focused report"},
+      {"id": "100004", "name": "Patch Report", "description": "Missing patches report"},
+      {"id": "100005", "name": "PCI Compliance Report", "description": "PCI DSS compliance report"}
+    ],
+    "Scan-Based Templates": [
+      {"id": "200001", "name": "Scan Results", "description": "Basic scan results"},
+      {"id": "200002", "name": "Vulnerability Summary", "description": "Summary of vulnerabilities found"},
+      {"id": "200003", "name": "Detailed Scan Report", "description": "Comprehensive scan details"}
+    ],
+    "Asset-Based Templates": [
+      {"id": "300001", "name": "Asset Inventory", "description": "List of discovered assets"},
+      {"id": "300002", "name": "Host Detection Report", "description": "Detected hosts and services"},
+      {"id": "300003", "name": "Asset Group Report", "description": "Report by asset groups"}
+    ]
+  },
+  "note": "These are example template IDs. Your Qualys instance may have different template IDs. Use Custom Request to query: POST /api/2.0/fo/report/ with data: action=list&type=template"
+}

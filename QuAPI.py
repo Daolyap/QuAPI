@@ -5,6 +5,7 @@ from requests.auth import HTTPBasicAuth
 import json
 import xml.etree.ElementTree as ET
 from datetime import datetime
+import os
 
 class QualysAPIClient:
     def __init__(self, root):
@@ -136,6 +137,9 @@ class QualysAPIClient:
         # Cache for templates and other data
         self.report_templates = {}
         self.scan_refs = {}
+
+        # Load templates from local file
+        self.load_templates_from_file()
 
         # --- Main Container ---
         main_container = ttk.Frame(root, style='TFrame')
@@ -319,6 +323,21 @@ class QualysAPIClient:
             font=('Segoe UI', 9),
             padx=10)
         self.status.pack(fill=tk.BOTH, expand=True)
+
+    def load_templates_from_file(self):
+        """Load report templates from local JSON file"""
+        try:
+            template_file = os.path.join(os.path.dirname(__file__), 'templates.json')
+            if os.path.exists(template_file):
+                with open(template_file, 'r') as f:
+                    data = json.load(f)
+                    # Flatten all templates into a single dict
+                    for category, templates in data.get('report_templates', {}).items():
+                        for template in templates:
+                            display_name = f"{template['name']} ({template['id']})"
+                            self.report_templates[display_name] = template['id']
+        except Exception as e:
+            print(f"Could not load templates file: {e}")
 
     def make_request(self, endpoint, method="GET", params=None, data=None, stream=False):
         """Make HTTP request to Qualys API"""
@@ -645,31 +664,23 @@ class QualysAPIClient:
                     "Try using Custom Request with:\nGET /qps/rest/2.0/get/am/key\nOr check your API permissions.")
 
     def list_report_templates(self):
-        """List report templates"""
-        # Try POST method first as some Qualys APIs require it
-        response = self.make_request("/api/2.0/fo/report/",
-            method="POST",
-            data={"action": "list", "type": "template"})
+        """List report templates from local file"""
+        if not self.report_templates:
+            messagebox.showwarning("No Templates", "No templates loaded from local file.\nCheck that templates.json exists.")
+            return
 
-        if response and response.status_code == 200:
-            try:
-                root = ET.fromstring(response.text)
-                data = self.parse_list_report_templates(root)
-                if data:
-                    self.display_in_tree(["ID", "Title", "Type"], data)
-                    self.display_raw_output(response)
-                    messagebox.showinfo("Success", f"Fetched {len(self.report_templates)} report templates.")
-                else:
-                    self.display_raw_output(response)
-                    messagebox.showwarning("No Templates", "No report templates found in response.")
-            except Exception as e:
-                messagebox.showerror("Parse Error", f"Could not parse response:\n{str(e)}")
-                self.display_raw_output(response)
-        else:
-            if response:
-                self.display_raw_output(response)
-                messagebox.showerror("API Error",
-                    f"Failed to fetch templates.\nStatus: {response.status_code}\nTry using Custom Request to test different endpoints.")
+        # Parse template data from the loaded dict
+        template_data = []
+        for display_name, template_id in self.report_templates.items():
+            # Extract name from display format "Name (ID)"
+            name = display_name.split(" (")[0] if " (" in display_name else display_name
+            template_data.append((template_id, name, "Local"))
+
+        self.display_in_tree(["ID", "Name", "Source"], template_data)
+        messagebox.showinfo("Templates Loaded",
+            f"Loaded {len(self.report_templates)} templates from local file.\n\n"
+            "These are example templates. Your Qualys instance may have different IDs.\n"
+            "You can manually enter template IDs when launching reports.")
 
     def list_scan_targets(self):
         """List scan targets"""
@@ -793,63 +804,93 @@ class QualysAPIClient:
         title_entry.grid(row=0, column=1, columnspan=2, sticky=tk.EW, pady=5, padx=(10, 0))
         title_entry.insert(0, f"Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
 
-        # Report Template
-        ttk.Label(main_frame, text="Report Template:", style='TLabel').grid(
+        # Template Selection Method
+        ttk.Label(main_frame, text="Template Selection:", style='TLabel').grid(
             row=1, column=0, sticky=tk.W, pady=5)
+        template_method = tk.StringVar(value="dropdown")
+        method_frame = ttk.Frame(main_frame, style='Card.TFrame')
+        method_frame.grid(row=1, column=1, sticky=tk.W, pady=5, padx=(10, 0))
+        ttk.Radiobutton(method_frame, text="From List", variable=template_method,
+            value="dropdown").pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Radiobutton(method_frame, text="Manual ID", variable=template_method,
+            value="manual").pack(side=tk.LEFT)
+
+        # Report Template Dropdown
+        ttk.Label(main_frame, text="Report Template:", style='TLabel').grid(
+            row=2, column=0, sticky=tk.W, pady=5)
         template_var = tk.StringVar()
         template_dropdown = ttk.Combobox(main_frame, textvariable=template_var,
-            width=42, state='readonly')
+            width=52, state='readonly')
         if self.report_templates:
             template_dropdown['values'] = list(self.report_templates.keys())
-        template_dropdown.grid(row=1, column=1, sticky=tk.EW, pady=5, padx=(10, 5))
-
-        def fetch_templates():
-            self.list_report_templates()
-            template_dropdown['values'] = list(self.report_templates.keys())
-            if self.report_templates:
+            if template_dropdown['values']:
                 template_dropdown.current(0)
+        template_dropdown.grid(row=2, column=1, columnspan=2, sticky=tk.EW, pady=5, padx=(10, 0))
 
-        ttk.Button(main_frame, text="Fetch", command=fetch_templates).grid(
-            row=1, column=2, padx=(5, 0))
+        # Manual Template ID Entry
+        ttk.Label(main_frame, text="Template ID:", style='TLabel').grid(
+            row=3, column=0, sticky=tk.W, pady=5)
+        manual_id_entry = ttk.Entry(main_frame, width=52, style='TEntry')
+        manual_id_entry.grid(row=3, column=1, columnspan=2, sticky=tk.EW, pady=5, padx=(10, 0))
+        manual_id_entry.insert(0, "Enter template ID here (e.g., 100001)")
+
+        def toggle_template_inputs(*args):
+            if template_method.get() == "dropdown":
+                template_dropdown.config(state='readonly')
+                manual_id_entry.config(state='disabled')
+            else:
+                template_dropdown.config(state='disabled')
+                manual_id_entry.config(state='normal')
+
+        template_method.trace('w', toggle_template_inputs)
+        toggle_template_inputs()
 
         # Report Type
         ttk.Label(main_frame, text="Report Type:", style='TLabel').grid(
-            row=2, column=0, sticky=tk.W, pady=5)
+            row=4, column=0, sticky=tk.W, pady=5)
         type_var = tk.StringVar(value="Scan")
         type_dropdown = ttk.Combobox(main_frame, textvariable=type_var,
-            values=["Scan", "Host"], width=42, state='readonly')
-        type_dropdown.grid(row=2, column=1, columnspan=2, sticky=tk.EW, pady=5, padx=(10, 0))
+            values=["Scan", "Host"], width=52, state='readonly')
+        type_dropdown.grid(row=4, column=1, columnspan=2, sticky=tk.EW, pady=5, padx=(10, 0))
 
         # Output Format
         ttk.Label(main_frame, text="Output Format:", style='TLabel').grid(
-            row=3, column=0, sticky=tk.W, pady=5)
+            row=5, column=0, sticky=tk.W, pady=5)
         format_var = tk.StringVar(value="csv")
         format_dropdown = ttk.Combobox(main_frame, textvariable=format_var,
-            values=["csv", "pdf", "xml", "html"], width=42, state='readonly')
-        format_dropdown.grid(row=3, column=1, columnspan=2, sticky=tk.EW, pady=5, padx=(10, 0))
+            values=["csv", "pdf", "xml", "html"], width=52, state='readonly')
+        format_dropdown.grid(row=5, column=1, columnspan=2, sticky=tk.EW, pady=5, padx=(10, 0))
 
         # Include Tags
         ttk.Label(main_frame, text="Include Tags (CSV):", style='TLabel').grid(
-            row=4, column=0, sticky=tk.W, pady=5)
-        include_tags_entry = ttk.Entry(main_frame, width=45, style='TEntry')
-        include_tags_entry.grid(row=4, column=1, columnspan=2, sticky=tk.EW, pady=5, padx=(10, 0))
+            row=6, column=0, sticky=tk.W, pady=5)
+        include_tags_entry = ttk.Entry(main_frame, width=52, style='TEntry')
+        include_tags_entry.grid(row=6, column=1, columnspan=2, sticky=tk.EW, pady=5, padx=(10, 0))
 
         # Exclude Tags
         ttk.Label(main_frame, text="Exclude Tags (CSV):", style='TLabel').grid(
-            row=5, column=0, sticky=tk.W, pady=5)
-        exclude_tags_entry = ttk.Entry(main_frame, width=45, style='TEntry')
-        exclude_tags_entry.grid(row=5, column=1, columnspan=2, sticky=tk.EW, pady=5, padx=(10, 0))
+            row=7, column=0, sticky=tk.W, pady=5)
+        exclude_tags_entry = ttk.Entry(main_frame, width=52, style='TEntry')
+        exclude_tags_entry.grid(row=7, column=1, columnspan=2, sticky=tk.EW, pady=5, padx=(10, 0))
 
         def submit():
-            template_name = template_var.get()
-            if not template_name or template_name not in self.report_templates:
-                messagebox.showerror("Error", "Please select a valid report template.")
-                return
+            # Determine which template ID to use
+            if template_method.get() == "dropdown":
+                template_name = template_var.get()
+                if not template_name or template_name not in self.report_templates:
+                    messagebox.showerror("Error", "Please select a valid report template.")
+                    return
+                template_id = self.report_templates[template_name]
+            else:
+                template_id = manual_id_entry.get().strip()
+                if not template_id or not template_id.isdigit():
+                    messagebox.showerror("Error", "Please enter a valid numeric template ID.")
+                    return
 
             payload = {
                 "action": "launch",
                 "report_title": title_entry.get(),
-                "template_id": self.report_templates[template_name],
+                "template_id": template_id,
                 "report_type": type_var.get(),
                 "output_format": format_var.get()
             }
@@ -867,7 +908,7 @@ class QualysAPIClient:
                 messagebox.showinfo("Success", "Report launched successfully!")
 
         button_frame = ttk.Frame(main_frame, style='Card.TFrame')
-        button_frame.grid(row=6, column=0, columnspan=3, pady=(20, 0))
+        button_frame.grid(row=8, column=0, columnspan=3, pady=(20, 0))
 
         ttk.Button(button_frame, text="Launch Report", command=submit,
             style='Action.TButton').pack(side=tk.LEFT, padx=5)
