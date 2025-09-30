@@ -11,6 +11,10 @@ Qualys API GUI for the gang.
 - Bug: Search Asset works with IP but does not work with NETBIOS or DNS
 - Bug: Inconsistent UI
 - Bug: List Cloud Agents does not work
+- Bug: Custom request just throws an informational rather than allowing a custom request
 - Change: Raw output and formatted output should be both generated
 - Change: Delete/Download Report should use the same fetch report ID feature
-- Change: Launch scan & Get Scan results are not yet implemented
+- Change: Launch scan & Get Scan results are to be implemented
+- Change: Formatted Output should allow sorting by the different columns
+- Change: UI ehnancements
+- Change: General Redux required. 
