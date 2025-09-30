@@ -10,8 +10,8 @@ class QualysAPIClient:
     def __init__(self, root):
         self.root = root
         self.root.title("QuAPI - Qualys API Client")
-        self.root.geometry("1200x850")
-        self.root.minsize(1000, 700)
+        self.root.geometry("1000x700")
+        self.root.minsize(900, 600)
 
         # --- Enhanced Color Theme ---
         self.bg_grey_dark = "#1e1e1e"
@@ -520,7 +520,9 @@ class QualysAPIClient:
             netbios = self.get_xml_text(h, 'NETBIOS', 'N/A')
             os = self.get_xml_text(h, 'OS', 'N/A')
             tracking = self.get_xml_text(h, 'TRACKING_METHOD', 'N/A')
-            hosts.append((ip, dns, netbios, os, tracking))
+            # Only add if we have at least one value
+            if ip != 'N/A' or dns != 'N/A' or netbios != 'N/A':
+                hosts.append((ip, dns, netbios, os, tracking))
         return hosts
 
     def parse_scan_targets(self, root):
@@ -544,6 +546,19 @@ class QualysAPIClient:
             published = self.get_xml_text(v, 'PUBLISHED_DATETIME', 'N/A')
             vulns.append((qid, title, severity, vuln_type, published))
         return vulns
+
+    def parse_host_details(self, root):
+        """Parse host details XML"""
+        hosts = []
+        for h in root.findall('.//HOST'):
+            ip = self.get_xml_text(h, 'IP', 'N/A')
+            dns = self.get_xml_text(h, 'DNS', 'N/A')
+            netbios = self.get_xml_text(h, 'NETBIOS', 'N/A')
+            os = self.get_xml_text(h, 'OS', 'N/A')
+            tracking = self.get_xml_text(h, 'TRACKING_METHOD', 'N/A')
+            last_scan = self.get_xml_text(h, 'LAST_SCAN_DATETIME', 'N/A')
+            hosts.append((ip, dns, netbios, os, tracking, last_scan))
+        return hosts
 
     def get_xml_text(self, element, path, default=''):
         """Safely extract text from XML element"""
@@ -572,22 +587,32 @@ class QualysAPIClient:
         response = self.make_request("/qps/rest/2.0/search/am/hostasset",
             method="POST",
             data="<ServiceRequest><filters><Criteria field='agentId' operator='GREATER'>0</Criteria></filters></ServiceRequest>")
-        self.display_both_outputs(response, self.parse_list_agents,
-            ["Agent ID", "Name", "Status", "Version", "Last Check-In"])
+        if response:
+            self.display_raw_output(response)
 
     def list_report_templates(self):
         """List report templates"""
         response = self.make_request("/api/2.0/fo/report/template/", params={"action": "list"})
-        self.display_both_outputs(response, self.parse_list_report_templates,
-            ["ID", "Title", "Type"])
         if response and response.status_code == 200:
-            messagebox.showinfo("Success", f"Fetched {len(self.report_templates)} report templates.")
+            try:
+                root = ET.fromstring(response.text)
+                data = self.parse_list_report_templates(root)
+                self.display_in_tree(["ID", "Title", "Type"], data)
+                self.display_raw_output(response)
+                messagebox.showinfo("Success", f"Fetched {len(self.report_templates)} report templates.")
+            except Exception as e:
+                messagebox.showerror("Parse Error", f"Could not parse response:\n{str(e)}")
+                self.display_raw_output(response)
+        else:
+            if response:
+                self.display_raw_output(response)
+            messagebox.showerror("API Error", f"Failed to fetch templates. Status: {response.status_code if response else 'N/A'}")
 
     def list_scan_targets(self):
         """List scan targets"""
-        response = self.make_request("/api/2.0/fo/scan/target/", params={"action": "list"})
-        self.display_both_outputs(response, self.parse_scan_targets,
-            ["ID", "Title", "Hosts"])
+        response = self.make_request("/api/2.0/fo/asset/ip/", params={"action": "list"})
+        if response:
+            self.display_raw_output(response)
 
     def search_assets(self):
         """Search for assets by IP, DNS, or NetBIOS"""
@@ -675,7 +700,8 @@ class QualysAPIClient:
             dialog.destroy()
             response = self.make_request("/api/2.0/fo/asset/host/",
                 params={"action": "list", "details": "All", "ips": ip})
-            self.display_raw_output(response)
+            self.display_both_outputs(response, self.parse_host_details,
+                ["IP", "DNS", "NetBIOS", "OS", "Tracking", "Last Scan"])
 
         button_frame = ttk.Frame(main_frame, style='Card.TFrame')
         button_frame.pack()
@@ -1134,7 +1160,7 @@ class QualysAPIClient:
         dialog = tk.Toplevel(self.root)
         dialog.title("Custom API Request")
         dialog.configure(bg=self.bg_grey_dark)
-        dialog.geometry("700x500")
+        dialog.geometry("750x600")
 
         main_frame = ttk.Frame(dialog, style='Card.TFrame', padding=20)
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
@@ -1152,12 +1178,12 @@ class QualysAPIClient:
             row=1, column=0, sticky=tk.W, pady=5)
         endpoint_entry = ttk.Entry(main_frame, width=60, style='TEntry')
         endpoint_entry.grid(row=1, column=1, sticky=tk.EW, pady=5, padx=(10, 0))
-        endpoint_entry.insert(0, "/api/2.0/fo/")
+        endpoint_entry.insert(0, "/api/2.0/fo/user/")
 
         # Parameters
         ttk.Label(main_frame, text="Parameters:", style='TLabel').grid(
             row=2, column=0, sticky=tk.NW, pady=5)
-        params_text = scrolledtext.ScrolledText(main_frame, width=60, height=8,
+        params_text = scrolledtext.ScrolledText(main_frame, width=60, height=6,
             bg=self.bg_grey_light, fg=self.text_white, insertbackground=self.text_white,
             font=('Consolas', 9))
         params_text.grid(row=2, column=1, sticky=tk.EW, pady=5, padx=(10, 0))
@@ -1166,10 +1192,48 @@ class QualysAPIClient:
         # Data/Body
         ttk.Label(main_frame, text="Body:", style='TLabel').grid(
             row=3, column=0, sticky=tk.NW, pady=5)
-        data_text = scrolledtext.ScrolledText(main_frame, width=60, height=8,
+        data_text = scrolledtext.ScrolledText(main_frame, width=60, height=6,
             bg=self.bg_grey_light, fg=self.text_white, insertbackground=self.text_white,
             font=('Consolas', 9))
         data_text.grid(row=3, column=1, sticky=tk.EW, pady=5, padx=(10, 0))
+
+        # Example section
+        ttk.Label(main_frame, text="Examples:", style='Header.TLabel').grid(
+            row=4, column=0, columnspan=2, sticky=tk.W, pady=(15, 5))
+
+        examples_frame = ttk.Frame(main_frame, style='Card.TFrame')
+        examples_frame.grid(row=5, column=0, columnspan=2, sticky=tk.EW, pady=(0, 10))
+
+        def load_example_1():
+            endpoint_entry.delete(0, tk.END)
+            endpoint_entry.insert(0, "/api/2.0/fo/user/")
+            params_text.delete("1.0", tk.END)
+            params_text.insert("1.0", "action=list")
+            data_text.delete("1.0", tk.END)
+            method_var.set("GET")
+
+        def load_example_2():
+            endpoint_entry.delete(0, tk.END)
+            endpoint_entry.insert(0, "/api/2.0/fo/report/")
+            params_text.delete("1.0", tk.END)
+            data_text.delete("1.0", tk.END)
+            data_text.insert("1.0", "action=list")
+            method_var.set("POST")
+
+        def load_example_3():
+            endpoint_entry.delete(0, tk.END)
+            endpoint_entry.insert(0, "/api/2.0/fo/scan/")
+            params_text.delete("1.0", tk.END)
+            params_text.insert("1.0", "action=list")
+            data_text.delete("1.0", tk.END)
+            method_var.set("GET")
+
+        ttk.Button(examples_frame, text="Ex 1: List Users (GET)",
+            command=load_example_1).pack(side=tk.LEFT, padx=5)
+        ttk.Button(examples_frame, text="Ex 2: List Reports (POST)",
+            command=load_example_2).pack(side=tk.LEFT, padx=5)
+        ttk.Button(examples_frame, text="Ex 3: List Scans (GET)",
+            command=load_example_3).pack(side=tk.LEFT, padx=5)
 
         def submit():
             endpoint = endpoint_entry.get().strip()
@@ -1202,7 +1266,7 @@ class QualysAPIClient:
             self.display_raw_output(response)
 
         button_frame = ttk.Frame(main_frame, style='Card.TFrame')
-        button_frame.grid(row=4, column=0, columnspan=2, pady=(20, 0))
+        button_frame.grid(row=6, column=0, columnspan=2, pady=(20, 0))
 
         ttk.Button(button_frame, text="Send Request", command=submit,
             style='Action.TButton').pack(side=tk.LEFT, padx=5)
