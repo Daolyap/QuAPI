@@ -11,19 +11,19 @@ class QualysAPIClient:
     def __init__(self, root):
         self.root = root
         self.root.title("QuAPI - Qualys API Client")
-        self.root.geometry("1000x700")
-        self.root.minsize(900, 600)
+        self.root.geometry("1200x800")
+        self.root.minsize(1100, 700)
 
         # --- Enhanced Color Theme ---
-        self.bg_grey_dark = "#1e1e1e"
-        self.bg_grey_medium = "#2d2d2d"
-        self.bg_grey_light = "#3c3c3c"
-        self.maroon = "#8b0000"
-        self.maroon_light = "#a52a2a"
-        self.maroon_hover = "#b33030"
-        self.text_white = "#e8e8e8"
-        self.text_grey = "#b0b0b0"
-        self.accent_blue = "#4a9eff"
+        self.bg_grey_dark = "#1a1a1a"
+        self.bg_grey_medium = "#252525"
+        self.bg_grey_light = "#353535"
+        self.maroon = "#a52a2a"
+        self.maroon_light = "#c14040"
+        self.maroon_hover = "#d85050"
+        self.text_white = "#f0f0f0"
+        self.text_grey = "#b8b8b8"
+        self.accent_blue = "#5aa5ff"
 
         self.root.configure(bg=self.bg_grey_dark)
 
@@ -36,17 +36,17 @@ class QualysAPIClient:
         style.configure('Card.TFrame', background=self.bg_grey_medium, relief=tk.FLAT)
 
         # Label styles
-        style.configure('TLabel', background=self.bg_grey_dark, foreground=self.text_white, font=('Segoe UI', 9))
-        style.configure('Title.TLabel', font=('Segoe UI', 11, 'bold'), foreground=self.maroon_light)
-        style.configure('Header.TLabel', font=('Segoe UI', 10, 'bold'), foreground=self.text_white)
+        style.configure('TLabel', background=self.bg_grey_dark, foreground=self.text_white, font=('Segoe UI', 10))
+        style.configure('Title.TLabel', font=('Segoe UI', 12, 'bold'), foreground=self.maroon_light)
+        style.configure('Header.TLabel', font=('Segoe UI', 10, 'bold'), foreground=self.text_grey)
 
         # Button styles
         style.configure('TButton',
             background=self.maroon,
             foreground=self.text_white,
             borderwidth=0,
-            padding=(8, 4),
-            font=('Segoe UI', 8))
+            padding=(12, 8),
+            font=('Segoe UI', 9))
         style.map('TButton',
             background=[('active', self.maroon_hover), ('pressed', self.maroon_light)],
             relief=[('pressed', 'sunken')])
@@ -54,9 +54,10 @@ class QualysAPIClient:
         style.configure('Action.TButton',
             background=self.accent_blue,
             foreground=self.text_white,
-            font=('Segoe UI', 9, 'bold'))
+            font=('Segoe UI', 10, 'bold'),
+            padding=(15, 8))
         style.map('Action.TButton',
-            background=[('active', '#3a8eef')])
+            background=[('active', '#4a95ef')])
 
         # Entry styles
         style.configure('TEntry',
@@ -64,7 +65,7 @@ class QualysAPIClient:
             foreground=self.text_white,
             bordercolor=self.maroon,
             insertcolor=self.text_white,
-            padding=5)
+            padding=8)
 
         # Combobox styles
         style.configure('TCombobox',
@@ -73,7 +74,7 @@ class QualysAPIClient:
             foreground=self.text_white,
             bordercolor=self.maroon,
             arrowcolor=self.text_white,
-            padding=5)
+            padding=8)
         style.map('TCombobox',
             fieldbackground=[('readonly', self.bg_grey_light)],
             selectbackground=[('readonly', self.bg_grey_light)])
@@ -98,12 +99,12 @@ class QualysAPIClient:
         style.configure('TNotebook',
             background=self.bg_grey_dark,
             borderwidth=0,
-            tabmargins=[2, 5, 2, 0])
+            tabmargins=[4, 8, 4, 0])
         style.configure('TNotebook.Tab',
             background=self.bg_grey_medium,
             foreground=self.text_grey,
-            padding=[15, 8],
-            font=('Segoe UI', 9))
+            padding=[20, 10],
+            font=('Segoe UI', 10))
         style.map('TNotebook.Tab',
             background=[('selected', self.maroon)],
             foreground=[('selected', self.text_white)],
@@ -115,12 +116,13 @@ class QualysAPIClient:
             foreground=self.text_white,
             fieldbackground=self.bg_grey_medium,
             borderwidth=0,
+            rowheight=25,
             font=('Segoe UI', 9))
         style.configure('Treeview.Heading',
             background=self.maroon,
             foreground=self.text_white,
             borderwidth=0,
-            font=('Segoe UI', 9, 'bold'))
+            font=('Segoe UI', 10, 'bold'))
         style.map('Treeview.Heading',
             background=[('active', self.maroon_light)])
         style.map('Treeview',
@@ -143,42 +145,42 @@ class QualysAPIClient:
 
         # --- Main Container ---
         main_container = ttk.Frame(root, style='TFrame')
-        main_container.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        main_container.pack(fill=tk.BOTH, expand=True, padx=8, pady=8)
 
         # --- API Configuration Section ---
-        config_frame = ttk.LabelFrame(main_container, text="API Configuration", padding=15)
-        config_frame.pack(fill=tk.X, padx=5, pady=5)
+        config_frame = ttk.LabelFrame(main_container, text="API Configuration", padding=20)
+        config_frame.pack(fill=tk.X, padx=8, pady=(0, 8))
 
         # API URL
-        ttk.Label(config_frame, text="API URL:", style='TLabel').grid(row=0, column=0, sticky=tk.W, pady=5, padx=(0, 10))
+        ttk.Label(config_frame, text="API URL:", style='TLabel').grid(row=0, column=0, sticky=tk.W, pady=8, padx=(0, 15))
         self.api_url = ttk.Entry(config_frame, width=60, style='TEntry')
         self.api_url.insert(0, "https://qualysguard.qg1.apps.qualys.co.uk")
-        self.api_url.grid(row=0, column=1, pady=5, sticky=tk.EW)
+        self.api_url.grid(row=0, column=1, pady=8, sticky=tk.EW)
 
         # Username
-        ttk.Label(config_frame, text="Username:", style='TLabel').grid(row=1, column=0, sticky=tk.W, pady=5, padx=(0, 10))
+        ttk.Label(config_frame, text="Username:", style='TLabel').grid(row=1, column=0, sticky=tk.W, pady=8, padx=(0, 15))
         self.username = ttk.Entry(config_frame, width=60, style='TEntry')
-        self.username.grid(row=1, column=1, pady=5, sticky=tk.EW)
+        self.username.grid(row=1, column=1, pady=8, sticky=tk.EW)
 
         # Password
-        ttk.Label(config_frame, text="Password:", style='TLabel').grid(row=2, column=0, sticky=tk.W, pady=5, padx=(0, 10))
+        ttk.Label(config_frame, text="Password:", style='TLabel').grid(row=2, column=0, sticky=tk.W, pady=8, padx=(0, 15))
         self.password = ttk.Entry(config_frame, width=60, show="*", style='TEntry')
-        self.password.grid(row=2, column=1, pady=5, sticky=tk.EW)
+        self.password.grid(row=2, column=1, pady=8, sticky=tk.EW)
 
         config_frame.columnconfigure(1, weight=1)
 
         # --- Operations Area ---
         operations_container = ttk.Frame(main_container, style='TFrame')
-        operations_container.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        operations_container.pack(fill=tk.BOTH, expand=True, padx=8, pady=(0, 8))
 
         # --- Sidebar with Operations ---
-        sidebar = ttk.Frame(operations_container, style='Card.TFrame', width=220)
-        sidebar.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 5))
+        sidebar = ttk.Frame(operations_container, style='Card.TFrame', width=260)
+        sidebar.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 8))
         sidebar.pack_propagate(False)
 
         # Sidebar header
         sidebar_header = ttk.Label(sidebar, text="API Operations", style='Title.TLabel')
-        sidebar_header.pack(pady=(10, 15), padx=10)
+        sidebar_header.pack(pady=(15, 20), padx=15)
 
         # Create scrollable button area
         button_canvas = tk.Canvas(sidebar, bg=self.bg_grey_medium, highlightthickness=0)
@@ -231,16 +233,16 @@ class QualysAPIClient:
         for group_name, buttons in button_groups.items():
             # Group label
             group_label = ttk.Label(button_frame, text=group_name, style='Header.TLabel')
-            group_label.pack(anchor=tk.W, pady=(8, 4), padx=10)
+            group_label.pack(anchor=tk.W, pady=(12, 6), padx=12)
 
             # Separator
             separator = ttk.Separator(button_frame, orient='horizontal')
-            separator.pack(fill=tk.X, padx=10, pady=(0, 4))
+            separator.pack(fill=tk.X, padx=12, pady=(0, 6))
 
             # Buttons
             for btn_text, btn_command in buttons:
                 btn = ttk.Button(button_frame, text=btn_text, command=btn_command, style='TButton')
-                btn.pack(fill=tk.X, pady=2, padx=10)
+                btn.pack(fill=tk.X, pady=3, padx=12)
 
         # --- Output Area ---
         output_frame = ttk.Frame(operations_container, style='TFrame')
@@ -255,19 +257,19 @@ class QualysAPIClient:
 
         # Search/Filter bar
         search_frame = ttk.Frame(formatted_frame, style='TFrame')
-        search_frame.pack(fill=tk.X, padx=5, pady=5)
+        search_frame.pack(fill=tk.X, padx=10, pady=10)
 
-        ttk.Label(search_frame, text="Filter:", style='TLabel').pack(side=tk.LEFT, padx=(5, 5))
+        ttk.Label(search_frame, text="Filter:", style='TLabel').pack(side=tk.LEFT, padx=(0, 8))
         self.search_var = tk.StringVar()
         self.search_var.trace('w', lambda *args: self.filter_tree())
-        search_entry = ttk.Entry(search_frame, textvariable=self.search_var, width=30, style='TEntry')
-        search_entry.pack(side=tk.LEFT, padx=(0, 10))
+        search_entry = ttk.Entry(search_frame, textvariable=self.search_var, width=35, style='TEntry')
+        search_entry.pack(side=tk.LEFT, padx=(0, 12))
 
         ttk.Button(search_frame, text="Clear Filter", command=self.clear_filter, style='TButton').pack(side=tk.LEFT)
 
         # Treeview with scrollbars
         tree_container = ttk.Frame(formatted_frame, style='TFrame')
-        tree_container.pack(fill=tk.BOTH, expand=True, padx=5, pady=(0, 5))
+        tree_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
 
         tree_scroll_y = ttk.Scrollbar(tree_container, orient="vertical")
         tree_scroll_x = ttk.Scrollbar(tree_container, orient="horizontal")
@@ -301,11 +303,11 @@ class QualysAPIClient:
             bg=self.bg_grey_medium,
             fg=self.text_white,
             insertbackground=self.text_white,
-            font=('Consolas', 9),
-            padx=10,
-            pady=10,
+            font=('Consolas', 10),
+            padx=12,
+            pady=12,
             relief=tk.FLAT)
-        self.raw_output.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        self.raw_output.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
         self.output_notebook.add(raw_frame, text="Raw Output")
 
@@ -667,6 +669,7 @@ class QualysAPIClient:
         """List VM report templates - try API first, fall back to local"""
         # Try multiple endpoints for VM templates
         endpoints = [
+            ("/fo/tools/reportTemplates.php", "GET", None),
             ("/msp/report_template_list.php", "GET", None),
             ("/api/2.0/fo/report/", "GET", {"action": "list"}),
         ]
@@ -675,19 +678,31 @@ class QualysAPIClient:
             response = self.make_request(endpoint, method=method, params=params)
 
             if response and response.status_code == 200:
+                # Display raw output so user can see what was returned
+                self.display_raw_output(response)
+
                 try:
                     root = ET.fromstring(response.text)
                     data = self.parse_list_report_templates(root)
                     if data:
                         self.display_in_tree(["ID", "Title", "Type"], data)
-                        self.display_raw_output(response)
                         messagebox.showinfo("Success",
                             f"Found {len(self.report_templates)} VM report templates!\n\n"
                             "These template IDs can be used when launching reports.\n"
+                            "Check the Raw Output tab for full details.\n"
                             "You can also manually enter template IDs.")
                         return
                 except Exception as e:
-                    continue  # Try next endpoint
+                    # Not XML, might be HTML or other format
+                    # Check if response looks like it has templates
+                    if "template" in response.text.lower():
+                        messagebox.showinfo("Templates Found (HTML)",
+                            f"Found templates at {endpoint}\n\n"
+                            "The response is in HTML format (not XML).\n"
+                            "Check the Raw Output tab to see template information.\n\n"
+                            "You may need to manually extract template IDs\n"
+                            "or use the Manual ID option when launching reports.")
+                        return
 
         # If all API attempts fail, show local templates
         if self.report_templates:
@@ -705,7 +720,7 @@ class QualysAPIClient:
             "3. Note the template IDs\n"
             "4. Use 'Manual ID' option when launching reports\n\n"
             "Or try Custom Request with:\n"
-            "GET /msp/report_template_list.php")
+            "GET /fo/tools/reportTemplates.php")
 
     def list_scan_targets(self):
         """List scan targets"""
@@ -886,18 +901,6 @@ class QualysAPIClient:
             values=["csv", "pdf", "xml", "html"], width=52, state='readonly')
         format_dropdown.grid(row=5, column=1, columnspan=2, sticky=tk.EW, pady=5, padx=(10, 0))
 
-        # Include Tags
-        ttk.Label(main_frame, text="Include Tags (CSV):", style='TLabel').grid(
-            row=6, column=0, sticky=tk.W, pady=5)
-        include_tags_entry = ttk.Entry(main_frame, width=52, style='TEntry')
-        include_tags_entry.grid(row=6, column=1, columnspan=2, sticky=tk.EW, pady=5, padx=(10, 0))
-
-        # Exclude Tags
-        ttk.Label(main_frame, text="Exclude Tags (CSV):", style='TLabel').grid(
-            row=7, column=0, sticky=tk.W, pady=5)
-        exclude_tags_entry = ttk.Entry(main_frame, width=52, style='TEntry')
-        exclude_tags_entry.grid(row=7, column=1, columnspan=2, sticky=tk.EW, pady=5, padx=(10, 0))
-
         def submit():
             # Determine which template ID to use
             if template_method.get() == "dropdown":
@@ -920,11 +923,6 @@ class QualysAPIClient:
                 "output_format": format_var.get()
             }
 
-            if include_tags_entry.get().strip():
-                payload["tag_set_include"] = include_tags_entry.get().strip()
-            if exclude_tags_entry.get().strip():
-                payload["tag_set_exclude"] = exclude_tags_entry.get().strip()
-
             dialog.destroy()
             response = self.make_request("/api/2.0/fo/report/", method="POST", data=payload)
             self.display_raw_output(response)
@@ -933,7 +931,7 @@ class QualysAPIClient:
                 messagebox.showinfo("Success", "Report launched successfully!")
 
         button_frame = ttk.Frame(main_frame, style='Card.TFrame')
-        button_frame.grid(row=8, column=0, columnspan=3, pady=(20, 0))
+        button_frame.grid(row=6, column=0, columnspan=3, pady=(20, 0))
 
         ttk.Button(button_frame, text="Launch Report", command=submit,
             style='Action.TButton').pack(side=tk.LEFT, padx=5)
